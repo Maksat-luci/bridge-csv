@@ -1,0 +1,13 @@
+# Используем базовый образ Python
+FROM python:3.9
+
+WORKDIR /python-vue
+COPY . /python-vue
+
+# Устанавливаем зависимости Python-приложения
+RUN pip install -r requirements.txt
+
+# Копируем исходный код в контейнер
+EXPOSE 8000
+# Запускаем приложение при старте контейнера
+CMD ["python", "app.py"]
