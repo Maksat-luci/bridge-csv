@@ -1,47 +1,7 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
 import csv
-import psycopg2
-
-app = Flask(__name__)
-CORS(app)
-
-@app.route('/get', methods=['GET'])
-def my_endpoint():
-    return 'Hello, World!'
-
-@app.route('/updatecsv', methods=['POST'])
-def update_csv():
-    if 'csv' not in request.files:
-        return 'No file uploaded', 400
-
-    csv_file = request.files['csv']
-    csv_file.save(os.path.join(os.getcwd(), 'data.csv'))
-    with open('data.csv', newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            print(row)
-    print("file saved")
-    return 'File saved', 200
-
-def connect_db(): 
-    try:
-        conn = psycopg2.connect(
-            host="localhost",
-            port="5432",
-            dbname="bridge-db",
-            user="postgres",
-            password="postgres"
-        )
-        print("#### Connection to the database successful!:)  ####  ")
-        return conn
-    except psycopg2.Error as e:
-        print("#### Error connecting to the database:", e)
-        raise SystemExit(1)  # Завершение программы с кодом ошибки
-
-db = connect_db()
-print(db)
+import psycopg2 
 
 def Create_Table_Profile(conn):
     cursor = conn.cursor()
@@ -224,20 +184,10 @@ def Create_Table_BasicData(conn):
 
     conn.commit()
     cursor.close()
-db = connect_db()
 
 
-print(Create_Table_Profile(db))
-print(Create_Table_BasicData(db))
-print(Create_Table_Contacts(db))
-print(Create_Table_WorkdAndEducation(db))
-print(Create_Table_PlaceOfResidence(db))
-print(Create_Table_PersonalInterested(db))
-print(Create_Table_DeviceInformation(db))
-print(Create_Table_Cookies(db))
-print(Create_Table_Settings(db))
+
 # Функция для вставки данных в таблицу
-
 def insert_data(table_name, data,conn):
     cursor = conn.cursor()
     columns = ', '.join(data.keys())
@@ -245,8 +195,6 @@ def insert_data(table_name, data,conn):
     placeholders = ', '.join(['%s'] * len(data))
     query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
     cursor.execute(query, values)
-    if table_name == 'profile':
-        0
     conn.commit()
     cursor.close()
 
@@ -263,19 +211,20 @@ def get_profile_id(first_name, last_name,conn):
 def SaveDataInCsv(conn):
     with open('data.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile)
+
         for row in reader:
-            # Вставка данных в таблицу profile
-        
+            row = {k.lower(): v for k, v in row.items()}  
             profile_data = {
-                'firstName': row['firstname'] if 'firstname' in row else None,
-                'lastName': row['lastname'] if 'lastname' in row else None,
-                'dateOfBirth': row['datebirth'] if 'datebirth' in row else None,
-                'gender': row['gender'] if 'gender' in row else None,
-                'email': row['email'].split(';') if 'email'in row else None,   # Разделение множественных значений через ;
-                'phone': row['phone'].split(';') if 'phone' in row else None,  # Разделение множественных значений через ;
-                'maritalStatus': int(row['maritalstatus']) if 'maritalstatus' in row else None,
-                'income': int(row['income']) if 'income' in row else None
+                'firstName': row.get('firstname'),
+                'lastName': row.get('lastname'),
+                'dateOfBirth': row.get('dateofbirth') or row.get('datebirth'),
+                'gender': row.get('gender'),
+                'email': row.get('email').split(';') if row.get('email') is not None else None,
+                'phone': row.get('phone').split(';') if row.get('phone') is not None else None,
+                'maritalStatus': row.get('maritalStatus'),
+                'income': row.get('income')
             }
+
             insert_data('profile', profile_data,conn)
 
             # Получение идентификатора профиля
@@ -283,67 +232,67 @@ def SaveDataInCsv(conn):
             # Вставка данных в таблицу basicData
             basic_data = {
                 'profileId': profile_id,
-                'interests': row['interests'] if 'interests' in row else None,
-                'languages': row['languages'].split(';') if 'languages' in row else None,  # Разделение множественных значений через ;
-                'religionViews': row['religionviews'] if 'religionviews' in row else None,
-                'politicalViews': row['politicalviews'] if 'politicalviews' in row else None,
+                'interests': row.get('interests'),
+                'languages': row.get('languages').split(';') if row.get('languages') is not None else None,  # Разделение множественных значений через ;
+                'religionViews': row.get('religionviews'),
+                'politicalViews': row.get('politicalviews'),
             }
             insert_data('basicData', basic_data,conn)
 
             # Вставка данных в таблицу contacts
             contacts_data = {
                 'profileId': profile_id,
-                'mobilePhone': row['mobilephone'] if 'mobilephone' in row else None,
-                'address': row['address'] if 'address' in row else None,
-                'linkedAccounts': row['linkedaccounts'].split(';') if 'linkedaccounts' in row else None,  # Разделение множественных значений через ;
-                'website': row['website'] if 'website' in row else None
+                'mobilePhone': row.get('mobilephone'),
+                'address': row.get('address'),
+                'linkedAccounts': row.get('linkedaccounts').split(';') if row.get('linkedaccounts') is not None else None,
+                'website': row.get('website')
             }
             insert_data('contacts', contacts_data,conn)
             workAndEducation = {
                 'profileId':profile_id,
-                'placeOfWork':row['placeofwork'] if 'placeofwork' in row else None,
-                'skills': row['skills'].split(';') if 'skills' in row else None,
-                'university':row['university'] if 'university' in row else None,
-                'faculty': row['faculty'] if 'faculty' in row else None,
+                'placeOfWork':row.get('placeofwork'),
+                'skills': row.get('skills').split(';') if row.get('skills') is not None else None,
+                'university':row.get('university'),
+                'faculty': row.get('faculty'),
             }
             insert_data('workAndEducation', workAndEducation,conn)
             placeOfResidence = {
                 'profileId': profile_id,
-                'currentCity':row['currentcity'] if 'currentcity' in row else None,
-                'birthPlace': row['birthplace'] if 'birthplace' in row else None,
-                'otherCities':row['othercities'].split(';') if 'othercities' in row else None
+                'currentCity':row.get('currentcity'),
+                'birthPlace': row.get('birthplace'),
+                'otherCities':row.get('othercities').split(';') if row.get('othercities') is not None else None
             }
             insert_data('placeOfResidence', placeOfResidence,conn)
             personalInterested = {
                 'profileId': profile_id,
-                'briefDescription':row['briefdescription'] if 'briefdescription' in row else None,
-                'hobby':row['hobby'] if 'hobby' in row else None,
-                'sport': row['sport'] if 'sport' in row else None,
+                'briefDescription':row.get('briefdescription'),
+                'hobby':row.get('hobby'),
+                'sport': row.get('sport'),
             }
             insert_data('personalInterests',personalInterested,conn)
             deviceInformation = {
                 'profileId':profile_id,
-                'operatingsystem':row['operatingsystem'] if 'operatingsystem' in row else None,
-                'displayResolution':row['displayresolution'] if 'displayresolution' in row else None,
-                'browser': row['browser'] if 'browser' in row else None,
-                'ISP': row['isp'] if 'isp' in row else None,
-                'adBlock': row['adblock'] if 'adblock' in row else None,
+                'operatingsystem':row.get('operatingsystem'),
+                'displayResolution':row.get('displayresolution'),
+                'browser': row.get('browser'),
+                'ISP': row.get('isp'),
+                'adBlock': row.get('adblock'),
             }
             insert_data('deviceInformation', deviceInformation,conn)
             cookies = {
                 'profileId': profile_id,
-                'sessionState':row['sessionstate'] if 'sessionstate' in row else None,
-                'language': row['language'] if 'language' in row else None,
-                'region': row['region'] if 'region' in row else None,
-                'recentPages':row['recentpages'].split(';') if 'recentpages' in row else None,
-                'productName':row['productname'] if 'productname' in row else None,
-                'productPrice':row['productprice'] if 'productprice' in row else None,
-                'quantity': row['quantity'] if 'quantity' in row else None,
-                'subTotal': row['subtotal'] if 'subtotal' in row else None,
-                'total': row['total'] if 'total' in row else None,
-                'couponCode': row['couponcode'] if 'couponcode' in row else None,
-                'shippingInformation': row['shippinginformation'] if 'shippinginformation' in row else None,
-                'taxInformation': row['taxinformation'] if 'taxinformation' in row else None
+                'sessionState':row.get('sessionstate'),
+                'language': row.get('language'),
+                'region': row.get('region'),
+                'recentPages':row.get('recentpages').split(';') if row.get('recentpages') is not None else None,
+                'productName':row.get('productname'),
+                'productPrice':row.get('productprice'),
+                'quantity': row.get('quantity'),
+                'subTotal': row.get('subtotal'),
+                'total': row.get('total'),
+                'couponCode': row.get('couponcode'),
+                'shippingInformation': row.get('shippinginformation'),
+                'taxInformation': row.get('taxinformation')
             }
             insert_data('cookies', cookies,conn)
             settings = {
@@ -358,14 +307,27 @@ def SaveDataInCsv(conn):
             }
             insert_data('settings',settings,conn)
 
-            #Продолжите аналогичным образом для остальных таблиц
-
-    #Закрытие соединения с базой данных PostgreSQL
-
     conn.close()
-    return "DONE 200 (-_-)"
 
-print(SaveDataInCsv(db))
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+def execute_query(query, data=None):
+    conn = psycopg2.connect(
+        host="db",
+        port="5432",
+        dbname="bridge-db",
+        user="postgres",
+        password="postgres"
+    )
+    cur = conn.cursor()
+    if data:
+        cur.execute(query, data)
+    else:
+        cur.execute(query)
+    conn.commit()
+    if cur.description is not None:
+        result = cur.fetchall()
+    else:
+        result = True
+    cur.close()
+    conn.close()
+    return result

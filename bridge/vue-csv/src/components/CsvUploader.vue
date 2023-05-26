@@ -7,6 +7,7 @@
             </div>
       <button type="button" class="btn btn-primary" @click="uploadCsv">Отправить</button>
     </form>
+    <div>{{ responseMessage }}</div>
   </div>
 </template>
 
@@ -16,6 +17,7 @@ import axios from 'axios';
 export default {
   data() {
     return {
+    responseMessage: '',
     };
   },
   methods: {
@@ -28,10 +30,10 @@ export default {
         }
       })
       .then(response => {
-        console.log(response);
+         this.responseMessage = response.data;
       })
       .catch(error => {
-        console.log(error);
+        this.responseMessage = error;
       });
     }
   }
