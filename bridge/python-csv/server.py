@@ -1,17 +1,14 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2 
-import app
+import db
 import os
 from psycopg2 import sql
-
-
+import requests
 
 app = Flask(__name__)
 
 CORS(app)
-
-
 
 def Connect_db(): 
     try:
@@ -27,6 +24,8 @@ def Connect_db():
     except psycopg2.Error as e:
         print("#### Error connecting to the database:", e)
         raise SystemExit(1)  # Завершение программы с кодом ошибки
+    
+
 
 @app.route('/api/v1/set-user-privacy', methods=['POST'])
 def setUserPrivacy():
@@ -50,19 +49,20 @@ def setUserPrivacy():
 
     try:
         query = sql.SQL("SELECT * FROM settings WHERE email = %s")
-        result = app.execute_query(query, (email,))
+        result = db.execute_query(query, (email,))
 
         if not result:
             return jsonify({'error': 'Email not found'}), 404
 
         query = sql.SQL("UPDATE settings SET {} = %s WHERE email = %s")
         query = query.format(sql.Identifier(category))
-        app.execute_query(query, (settings_value, email))
+        db.execute_query(query, (settings_value, email))
 
         return jsonify({'success': True}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/v1/get-profile-data', methods=['GET'])
 def get_profile():
@@ -76,13 +76,11 @@ def get_profile():
 
     data = request.get_json()
     email = data.get('email')
-    print(email)
 
     if not email:
         return jsonify({'error': 'Email parameter is missing'}), 400
 
     try:
-        # Получение данных о профиле и связанных данных из других таблиц
         query = """
         SELECT p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.email, p.phone, p.maritalStatus, p.income,
                bd.interests, bd.languages, bd.religionViews, bd.politicalViews,
@@ -103,13 +101,11 @@ def get_profile():
         LEFT JOIN cookies co ON p.id = co.profileId
         WHERE p.email = %s
         """
-        result = app.execute_query(query, ([email],))
+        result = db.execute_query(query, ([email],))
 
         if not result:
             return jsonify({'error': 'No profile found for the provided email'}), 404
 
-        # Преобразование результата запроса в словарь для удобного формата JSON
-        print(result)
         profile_data = {
             'profile': {
             'id': result[0][0],
@@ -179,32 +175,108 @@ def get_profile():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
 
 @app.route('/api/v1/update-csv', methods=['POST'])
 def update_csv():
     if 'csv' not in request.files:
         return 'No file uploaded', 400
     
+    dataset_name = request.form.get('datasetName')  # Получаем значение datasetName из запроса
     csv_file = request.files['csv']
-    csv_file.save(os.path.join(os.getcwd(), 'data.csv'))
+    csv_file.save(os.path.join(os.getcwd(), csv_file.filename))
 
     print("file saved")   
-    updatepostgres()
-    return "File saved and updated postgres", 200
+    updatepostgres(csv_file.filename,dataset_name)
+    response, status_code = SendPostRequest(dataset_name)
+    if status_code != 200:
+        return "File saved but post request not sended:"+response , status_code
+    else:
+        return "File saved and updated postgres:"+response, status_code
 
-def updatepostgres():
-    db = Connect_db()
-    print(db)
-    print(app.Create_Table_Profile(db))
-    print(app.Create_Table_BasicData(db))
-    print(app.Create_Table_Contacts(db))
-    print(app.Create_Table_WorkdAndEducation(db))
-    print(app.Create_Table_PlaceOfResidence(db))
-    print(app.Create_Table_PersonalInterested(db))
-    print(app.Create_Table_DeviceInformation(db))
-    print(app.Create_Table_Cookies(db))
-    print(app.Create_Table_Settings(db))
-    app.SaveDataInCsv(db)
+def get_row_count(conn, table_name):
+    cursor = conn.cursor()
+    query = f"SELECT COUNT(*) FROM {table_name};"
+    cursor.execute(query)
+    row_count = cursor.fetchone()[0]
+    cursor.close()
+    return row_count
+
+def SendPostRequest(dataset_name):
+    # auth_token = os.getenv('AUTH_TOKEN')
+    conn = Connect_db()
+    auth_token = "$2a$11$wz54vt1eadZj94RU.0Op.eHHwYYm4N8ai4b40Ma63dawtNeKTccpK"
+    uuid = db.get_dataset_id(dataset_name,conn)
+    rows_count = get_row_count(conn,'profile')
+
+
+
+
+    url = 'https://bridge.mydatacoin.io/api/v1/DataSets/create-dataset'
+    data = {
+        'token': auth_token,
+        'id': str(uuid),
+        'name': dataset_name,
+        'rows': rows_count
+    }
+    response = requests.post(url, json=data)
+    
+    return response.text, response.status_code 
+
+    
+
+@app.route('/api/v1/credentials', methods=['GET'])
+def get_credentials():
+    auth_token = os.getenv('AUTH_TOKEN')
+
+    if request.headers.get('Authorization') != auth_token:
+        return jsonify({'error': 'Invalid token'}), 401 
+
+    
+    conn = Connect_db()
+    cursor = conn.cursor()
+    query = "SELECT * FROM credentials"
+    
+    try:
+        cursor.execute(query)
+        credentials = cursor.fetchall()
+        # Преобразуйте данные в формат JSON
+        credentials_json = []
+        for credential in credentials:
+            credential_data = {
+                'profileId': credential[1],
+                'emails': credential[2],
+                'phones': credential[3]
+            }
+            credentials_json.append(credential_data)
+        
+        # Отправьте данные в ответе в формате JSON
+        return jsonify({'credentials': credentials_json})
+    except psycopg2.Error as e:
+        print("Error retrieving credentials:", e)
+        return 'Error retrieving credentials', 500
+    
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+def updatepostgres(filenamecsv,dataset_name):
+    connect_db = Connect_db()
+    print(connect_db)
+    print(db.Create_Table_Datasets(connect_db))
+    print(db.Create_Table_Profile(connect_db))
+    print(db.Create_Table_Credentials(connect_db))
+    print(db.Create_Table_BasicData(connect_db))
+    print(db.Create_Table_Contacts(connect_db))
+    print(db.Create_Table_WorkdAndEducation(connect_db))
+    print(db.Create_Table_PlaceOfResidence(connect_db))
+    print(db.Create_Table_PersonalInterested(connect_db))
+    print(db.Create_Table_DeviceInformation(connect_db))
+    print(db.Create_Table_Cookies(connect_db))
+    print(db.Create_Table_Settings(connect_db))
+    db.SaveDataInCsv(connect_db,filenamecsv,dataset_name)
 
 # docker tag local-image:tagname new-repo:tagname
 # docker push new-repo:tagname

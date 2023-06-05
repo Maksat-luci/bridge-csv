@@ -1,0 +1,35 @@
+version: '3'
+services:
+    vue:
+      build: ./vue-csv    
+      ports:
+        - 8080:8080    
+      container_name: vue-csv
+      networks:
+        - myappnetwork
+      
+    python:
+      build: ./python-csv    
+      container_name: python-csv
+      ports:
+        - 8000:8000
+      networks:
+        - myappnetwork
+      depends_on:
+        - db    
+    db:
+      image: postgres:latest
+      restart: always
+      container_name: db
+      environment:
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=postgres
+        - POSTGRES_DB=bridge-db
+      ports:
+        - "5432:5432"
+      networks:
+        - myappnetwork
+      volumes:
+        - ./data:/var/lib/postgresql/data
+networks:
+  myappnetwork:

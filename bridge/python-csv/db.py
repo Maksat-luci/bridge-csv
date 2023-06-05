@@ -1,12 +1,13 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 import csv
 import psycopg2 
 
+
+
 def Create_Table_Profile(conn):
     cursor = conn.cursor()
-    Profile_table = '''CREATE TABLE IF NOT EXISTS profile (    
-        id SERIAL PRIMARY KEY,         
+    Profile_table = '''CREATE TABLE IF NOT EXISTS profile (
+        id SERIAL PRIMARY KEY,
+        datasetsId UUID REFERENCES datasets (id),
         firstName TEXT,
         lastName TEXT,
         dateOfBirth TIMESTAMP,
@@ -16,7 +17,6 @@ def Create_Table_Profile(conn):
         maritalStatus INTEGER,
         income INTEGER
     );'''
-
     try:
         cursor.execute(Profile_table)
         print("Table 'profile' created successfully!")
@@ -25,6 +25,45 @@ def Create_Table_Profile(conn):
 
     conn.commit()
     cursor.close()
+
+def Create_Table_Datasets(conn):
+    cursor = conn.cursor()
+    datasets_table = '''CREATE TABLE IF NOT EXISTS datasets (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name TEXT,
+        filename TEXT
+    );'''
+    try:
+        cursor.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
+        print("function added successfully")
+    except psycopg2.Error as e:
+        print("Error Added function for uuid (uuid_generate_v4())")
+    try:
+        cursor.execute(datasets_table)
+        print("Table 'Datasets' created successfully!")
+    except psycopg2.Error as e:
+        print("Error creating table:", e)
+    conn.commit()
+    cursor.close()
+
+def Create_Table_Credentials(conn):
+    cursor = conn.cursor()
+    Profile_table = '''CREATE TABLE IF NOT EXISTS credentials (    
+        id SERIAL PRIMARY KEY,
+        profileId INTEGER REFERENCES profile(id),
+        emails TEXT[],
+        phones TEXT[]
+    );'''
+
+    try:
+        cursor.execute(Profile_table)
+        print("Table 'Credentials' created successfully!")
+    except psycopg2.Error as e:
+        print("Error creating table:", e)
+    conn.commit()
+    cursor.close()
+
+
 
 def Create_Table_Contacts(conn):
     cursor = conn.cursor()
@@ -185,8 +224,6 @@ def Create_Table_BasicData(conn):
     conn.commit()
     cursor.close()
 
-
-
 # Функция для вставки данных в таблицу
 def insert_data(table_name, data,conn):
     cursor = conn.cursor()
@@ -199,22 +236,37 @@ def insert_data(table_name, data,conn):
     cursor.close()
 
 # Функция для получения идентификатора профиля
-def get_profile_id(first_name, last_name,conn):
+def get_profile_id(email, phone,conn):
     cursor = conn.cursor()
     query = "SELECT id FROM profile WHERE email = %s OR phone = %s"
-    cursor.execute(query, (first_name, last_name))
+    cursor.execute(query, (email, phone))
     profile_id = cursor.fetchone()
     cursor.close()
     return profile_id[0] if profile_id else None
 
+def get_dataset_id(name,conn):
+    cursor = conn.cursor()
+    query = "SELECT id FROM datasets WHERE name = %s"
+    cursor.execute(query, (name,))
+    dataset_id = cursor.fetchone()
+    cursor.close()
+    return dataset_id[0] if dataset_id else None
+
 # Чтение CSV файла и вставка данных в таблицы
-def SaveDataInCsv(conn):
-    with open('data.csv', newline='') as csvfile:
+def SaveDataInCsv(conn,filenamecsv,dataset_name):
+    with open(filenamecsv, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
+        dataset_data = {
+            'name': dataset_name,
+            'filename': filenamecsv
+        }
+        insert_data('datasets', dataset_data,conn)
+        dataset_id = get_dataset_id(dataset_data['name'],conn)
 
         for row in reader:
             row = {k.lower(): v for k, v in row.items()}  
             profile_data = {
+                'datasetsId': dataset_id,
                 'firstName': row.get('firstname'),
                 'lastName': row.get('lastname'),
                 'dateOfBirth': row.get('dateofbirth') or row.get('datebirth'),
@@ -230,6 +282,13 @@ def SaveDataInCsv(conn):
             # Получение идентификатора профиля
             profile_id = get_profile_id(profile_data['email'], profile_data['phone'],conn)
             # Вставка данных в таблицу basicData
+            credentials_data = {
+                'profileId': profile_id,
+                'emails': profile_data['email'],
+                'phones': profile_data['phone']
+            }
+            insert_data('credentials',credentials_data,conn)
+
             basic_data = {
                 'profileId': profile_id,
                 'interests': row.get('interests'),
@@ -331,3 +390,4 @@ def execute_query(query, data=None):
     cur.close()
     conn.close()
     return result
+
