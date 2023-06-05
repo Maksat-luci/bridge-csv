@@ -1,2 +1,0 @@
-# vue-csv and python
-
