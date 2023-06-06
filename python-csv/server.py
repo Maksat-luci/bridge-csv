@@ -5,9 +5,10 @@ import db
 import os
 from psycopg2 import sql
 import requests
+from flasgger import Swagger, swag_from
 
 app = Flask(__name__)
-
+swagger = Swagger(app)
 CORS(app)
 
 def Connect_db(): 
@@ -29,6 +30,71 @@ def Connect_db():
 
 @app.route('/api/v1/set-user-privacy', methods=['POST'])
 def setUserPrivacy():
+    """
+    Set user privacy settings.
+
+    ---
+    tags:
+      - API
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              description: User email
+            category:
+              type: string
+              description: Privacy category
+            settingsValue:
+              type: string
+              description: Settings value
+
+    responses:
+      200:
+        description: Success
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              description: Indicates if the operation was successful
+      400:
+        description: Bad Request
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      401:
+        description: Unauthorized
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      404:
+        description: Not Found
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      500:
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+    """
     # Проверка наличия специального токена
     auth_token = os.getenv('AUTH_TOKEN')
     
@@ -66,6 +132,132 @@ def setUserPrivacy():
 
 @app.route('/api/v1/get-profile-data', methods=['GET'])
 def get_profile():
+    """
+    Get profile data.
+
+    ---
+    tags:
+      - API
+    parameters:
+      - name: email
+        in: query
+        type: string
+        required: true
+        description: Email address of the profile to retrieve.
+
+    responses:
+      200:
+        description: Profile data retrieved successfully.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Data:
+                  type: object
+                  properties:
+                    # ... (existing properties)
+
+        examples:
+          application/json:
+            {
+              "Data": {
+                "profile": {
+                  "id": 1,
+                  "firstName": "John",
+                  "lastName": "Doe",
+                  "dateOfBirth": "1990-01-01",
+                  "gender": "Male",
+                  "email": "johndoe@example.com",
+                  "phone": "123-456-7890",
+                  "maritalStatus": "Single",
+                  "income": 50000
+                },
+                "basicData": {
+                  "interests": "Music",
+                  "languages": "English, French",
+                  "religionViews": "Agnostic",
+                  "politicalViews": "Liberal"
+                },
+                "contacts": {
+                  "mobilePhone": "987-654-3210",
+                  "address": "123 Main St, City",
+                  "linkedAccounts": "Twitter: @johndoe",
+                  "website": "johndoe.com"
+                },
+                "workAndEducation": {
+                  "placeOfWork": "ABC Company",
+                  "skills": "Programming, Project Management",
+                  "university": "XYZ University",
+                  "faculty": "Computer Science"
+                },
+                "placeOfResidence": {
+                  "currentCity": "City",
+                  "birthPlace": "City",
+                  "otherCities": "City1, City2"
+                },
+                "personalInterests": {
+                  "briefDescription": "I love playing guitar.",
+                  "hobby": "Gardening",
+                  "sport": "Football"
+                },
+                "deviceInformation": {
+                  "operatingSystem": "Windows 10",
+                  "displayResolution": "1920x1080",
+                  "browser": "Chrome",
+                  "ISP": "Internet Provider",
+                  "adBlock": true
+                },
+                "cookies": {
+                  "sessionState": "Active",
+                  "language": "English",
+                  "region": "US",
+                  "recentPages": "Homepage, Products",
+                  "productId": "12345",
+                  "productName": "Product A",
+                  "productPrice": 19.99,
+                  "quantity": 2,
+                  "subTotal": 39.98,
+                  "total": 39.98,
+                  "couponCode": "DISCOUNT10",
+                  "shippingInformation": "123 Main St, City",
+                  "taxInformation": "1234567890"
+                }
+              }
+            }
+      400:
+        description: Bad Request
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      401:
+        description: Unauthorized
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      404:
+        description: Not Found
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      500:
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+    """
     auth_token = os.getenv('AUTH_TOKEN')
 
     if request.headers.get('Authorization') != auth_token:
@@ -179,6 +371,50 @@ def get_profile():
 
 @app.route('/api/v1/update-csv', methods=['POST'])
 def update_csv():
+    """
+    Update CSV data.
+
+    ---
+    tags:
+      - API
+    parameters:
+      - name: csv
+        in: formData
+        type: file
+        required: true
+        description: CSV file to update
+      - name: datasetName
+        in: formData
+        type: string
+        required: true
+        description: Dataset name
+
+    responses:
+      200:
+        description: Success
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              description: Success message
+      400:
+        description: Bad Request
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      500:
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+    """
     if 'csv' not in request.files:
         return 'No file uploaded', 400
     
@@ -203,9 +439,9 @@ def get_row_count(conn, table_name):
     return row_count
 
 def SendPostRequest(dataset_name):
-    # auth_token = os.getenv('AUTH_TOKEN')
+    auth_token = os.getenv('AUTH_TOKEN')
     conn = Connect_db()
-    auth_token = "$2a$11$wz54vt1eadZj94RU.0Op.eHHwYYm4N8ai4b40Ma63dawtNeKTccpK"
+    # auth_token = "$2a$11$wz54vt1eadZj94RU.0Op.eHHwYYm4N8ai4b40Ma63dawtNeKTccpK"
     uuid = db.get_dataset_id(dataset_name,conn)
     rows_count = get_row_count(conn,'profile')
 
@@ -227,6 +463,54 @@ def SendPostRequest(dataset_name):
 
 @app.route('/api/v1/credentials', methods=['GET'])
 def get_credentials():
+    """
+    Get credentials.
+
+    ---
+    tags:
+      - API
+
+    responses:
+      200:
+        description: Success
+        schema:
+          type: object
+          properties:
+            credentials:
+              type: array
+              items:
+                type: object
+                properties:
+                  profileId:
+                    type: string
+                    description: Profile ID
+                  emails:
+                    type: array
+                    items:
+                      type: string
+                    description: List of emails
+                  phones:
+                    type: array
+                    items:
+                      type: string
+                    description: List of phones
+      401:
+        description: Unauthorized
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+      500:
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              description: Error message
+    """
     auth_token = os.getenv('AUTH_TOKEN')
 
     if request.headers.get('Authorization') != auth_token:
