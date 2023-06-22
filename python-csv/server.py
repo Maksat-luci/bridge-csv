@@ -454,7 +454,7 @@ def update_csv():
         updatepostgres(csv_file.filename, dataset_name)
         SendPostRequest(dataset_name)
 
-        return render_template('upload.html', error="200")
+        return {"code":200, "response":"successfully"}
     return render_template('upload.html')
 
 
