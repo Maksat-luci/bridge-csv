@@ -1,21 +1,47 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify,render_template
 from flask_cors import CORS
 import psycopg2 
 import db
 import os
 from psycopg2 import sql
 import requests
-from flasgger import Swagger, swag_from
+from flasgger import Swagger
 
 app = Flask(__name__)
-swagger = Swagger(app)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Максимальный размер файла в байтах (здесь 16 МБ)
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'swagger',
+            "route": '/swagger.json',
+            "rule_filter": lambda rule: True,  
+            "model_filter": lambda tag: True,  
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/swagger"
+}
+swagger = Swagger(app, template={
+    "swagger": "2.0",
+    "info": {
+        "title": "MDC-Bridge API Documentation",
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "schemes": [
+        "http",
+        "https"
+    ],
+}, config=swagger_config)
 CORS(app)
 
 def Connect_db(): 
     try:
         conn = psycopg2.connect(
             host="db",
-            port="5432",
+            port="5858",
             dbname="bridge-db",
             user="postgres",
             password="postgres"
@@ -369,11 +395,10 @@ def get_profile():
         return jsonify({'error': str(e)}), 500
     
 
-@app.route('/api/v1/update-csv', methods=['POST'])
+@app.route('/updatecsv', methods=['POST','GET'])
 def update_csv():
     """
     Update CSV data.
-
     ---
     tags:
       - API
@@ -415,20 +440,23 @@ def update_csv():
               type: string
               description: Error message
     """
-    if 'csv' not in request.files:
-        return 'No file uploaded', 400
-    
-    dataset_name = request.form.get('datasetName')  # Получаем значение datasetName из запроса
-    csv_file = request.files['csv']
-    csv_file.save(os.path.join(os.getcwd(), csv_file.filename))
 
-    print("file saved")   
-    updatepostgres(csv_file.filename,dataset_name)
-    response, status_code = SendPostRequest(dataset_name)
-    if status_code != 200:
-        return "File saved but post request not sended:"+response , status_code
-    else:
-        return "File saved and updated postgres:"+response, status_code
+    if request.method == 'POST':
+        dataset_name = request.form.get('datasetName')
+        csv_file = request.files.get('csv')
+
+        if csv_file is None:
+            return 'No file uploaded', 400
+
+        csv_file.save(os.path.join(os.getcwd(), csv_file.filename))
+
+        print("file saved")   
+        updatepostgres(csv_file.filename, dataset_name)
+        SendPostRequest(dataset_name)
+
+        return render_template('upload.html', error="200")
+    return render_template('upload.html')
+
 
 def get_row_count(conn, table_name):
     cursor = conn.cursor()
@@ -441,7 +469,6 @@ def get_row_count(conn, table_name):
 def SendPostRequest(dataset_name):
     auth_token = os.getenv('AUTH_TOKEN')
     conn = Connect_db()
-    # auth_token = "$2a$11$wz54vt1eadZj94RU.0Op.eHHwYYm4N8ai4b40Ma63dawtNeKTccpK"
     uuid = db.get_dataset_id(dataset_name,conn)
     rows_count = get_row_count(conn,'profile')
 
@@ -561,9 +588,6 @@ def updatepostgres(filenamecsv,dataset_name):
     print(db.Create_Table_Cookies(connect_db))
     print(db.Create_Table_Settings(connect_db))
     db.SaveDataInCsv(connect_db,filenamecsv,dataset_name)
-
-# docker tag local-image:tagname new-repo:tagname
-# docker push new-repo:tagname
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)

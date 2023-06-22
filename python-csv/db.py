@@ -372,7 +372,7 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
 def execute_query(query, data=None):
     conn = psycopg2.connect(
         host="db",
-        port="5432",
+        port="5858",
         dbname="bridge-db",
         user="postgres",
         password="postgres"
