@@ -1,27 +1,28 @@
 version: '3'
-services:      
-    python:
-      build: ./python-csv    
-      container_name: python-csv
-      ports:
-        - 8000:8000
-      networks:
-        - myappnetwork
-      depends_on:
-        - db    
-    db:
-      image: postgres:latest
-      restart: always
-      container_name: db
-      environment:
-        - POSTGRES_USER=postgres
-        - POSTGRES_PASSWORD=postgres
-        - POSTGRES_DB=bridge-db
-      ports:
-        - "5858:5432"
-      networks:
-        - myappnetwork
-      volumes:
-        - ./data:/var/lib/postgresql/data
+services:
+  python:
+    build: ./python-csv
+    container_name: python-csv
+    ports:
+      - 8000:8000
+    networks:
+      - myappnetwork
+    depends_on:
+      - db
+    command: gunicorn -b 0.0.0.0:8000 server:app  
+  db:
+    image: postgres:latest
+    restart: always
+    container_name: db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=bridge-db
+    ports:
+      - "5858:5432"
+    networks:
+      - myappnetwork
+    volumes:
+      - ./data:/var/lib/postgresql/data
 networks:
   myappnetwork:

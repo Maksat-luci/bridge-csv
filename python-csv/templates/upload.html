@@ -5,12 +5,10 @@
 </head>
 <body>
     <h1>Upload CSV File</h1>
-    {% if error %}
-    <p>{{ error }}</p>
-    {% endif %}
+
     <form method="POST" enctype="multipart/form-data">
         <label for="datasetName">Dataset Name:</label>
-        <input type="text" id="datasetName" name="datasetName" required><br><br>
+        <input type="text" id="datasetName" name="datasetName" require  d><br><br>
         
         <label for="csv">CSV File:</label>
         <input type="file" id="csv" name="csv" accept=".csv" required><br><br>

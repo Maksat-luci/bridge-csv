@@ -41,7 +41,7 @@ def Connect_db():
     try:
         conn = psycopg2.connect(
             host="db",
-            port="5858",
+            port="5432",
             dbname="bridge-db",
             user="postgres",
             password="postgres"

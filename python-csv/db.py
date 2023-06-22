@@ -225,15 +225,22 @@ def Create_Table_BasicData(conn):
     cursor.close()
 
 # Функция для вставки данных в таблицу
-def insert_data(table_name, data,conn):
-    cursor = conn.cursor()
-    columns = ', '.join(data.keys())
-    values = tuple(data.values())
-    placeholders = ', '.join(['%s'] * len(data))
-    query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-    cursor.execute(query, values)
-    conn.commit()
-    cursor.close()
+def insert_data(table_name, data, conn):
+    try:
+        cursor = conn.cursor()
+        columns = ', '.join(data.keys())
+        values = tuple(data.values())
+        placeholders = ', '.join(['%s'] * len(data))
+        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+        cursor.execute(query, values)
+        conn.commit()
+        cursor.close()
+    except Exception as e:
+        # Обработка исключения
+        print(f"An error occurred during data insertion: {e}")
+        conn.rollback()
+
+
 
 # Функция для получения идентификатора профиля
 def get_profile_id(email, phone,conn):
@@ -372,7 +379,7 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
 def execute_query(query, data=None):
     conn = psycopg2.connect(
         host="db",
-        port="5858",
+        port="5432",
         dbname="bridge-db",
         user="postgres",
         password="postgres"
