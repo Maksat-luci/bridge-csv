@@ -6,7 +6,7 @@ import os
 from psycopg2 import sql
 import requests
 from flasgger import Swagger
-
+import mapper
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Максимальный размер файла в байтах (здесь 16 МБ)
 swagger_config = {
@@ -443,11 +443,11 @@ def update_csv():
 
     if request.method == 'POST':
         dataset_name = request.form.get('datasetName')
-        csv_file = request.files.get('csv')
+        csv_file_f = request.files.get('csv')
 
         if csv_file is None:
             return 'No file uploaded', 400
-
+        csv_file = mapper.process_csv_files(csv_file_f)
         csv_file.save(os.path.join(os.getcwd(), csv_file.filename))
 
         print("file saved")   

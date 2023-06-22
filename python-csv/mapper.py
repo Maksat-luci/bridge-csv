@@ -58,9 +58,9 @@ def find_matching_column(column, df_columns):
         return matches[0]
     return None
 
-def process_csv_files(input_dir, output_dir):
+def process_csv_files(csv_files):
     # Получаем список CSV-файлов в указанной директории
-    csv_files = glob.glob(os.path.join(input_dir, "*.csv"))
+    # csv_files = glob.glob(os.path.join(input_dir, "*.csv"))
 
     for csv_file in csv_files:
         # Считываем входной CSV-файл
@@ -101,13 +101,14 @@ def process_csv_files(input_dir, output_dir):
                         output_df[column] = "null"
 
         # Формируем имя выходного файла на основе имени входного файла
-        output_file = os.path.basename(csv_file).replace(".csv", "_corrected.csv")
-        output_path = os.path.join(output_dir, output_file)
+        # output_file = os.path.basename(csv_file).replace(".csv", "_corrected.csv")
+        # output_path = os.path.join(output_dir, output_file)
 
         # Сохраняем output_df в выходной файл
-        output_df.to_csv(output_path, index=False)
+        # output_df.to_csv(output_path, index=False)
 
         print(f"Обработка файла {csv_file} завершена.")
+        return output_df
 
 # Пример использования
 input_directory = "/Users/arsen/Desktop/MDC/csvmaker/NOT_corrected"
