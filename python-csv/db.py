@@ -259,6 +259,9 @@ def get_dataset_id(name,conn):
     cursor.close()
     return dataset_id[0] if dataset_id else None
 
+def process_empty_string(value):
+    return None if value == '' else value
+
 # Чтение CSV файла и вставка данных в таблицы
 def SaveDataInCsv(conn,filenamecsv,dataset_name):
     with open(filenamecsv, newline='') as csvfile:
@@ -269,19 +272,17 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
         }
         insert_data('datasets', dataset_data,conn)
         dataset_id = get_dataset_id(dataset_data['name'],conn)
-        print(reader)
         for row in reader:
-            row = {k.lower(): v for k, v in row.items()}  
             profile_data = {
                 'datasetsId': dataset_id,
-                'firstName': row.get('firstName'),
-                'lastName': row.get('lastName'),
-                'dateOfBirth': row.get('dateOfBirth'),
-                'gender': row.get('gender'),
+                'firstName': process_empty_string(row.get('firstName')),
+                'lastName': process_empty_string(row.get('lastName')),
+                'dateOfBirth': process_empty_string(row.get('dateOfBirth')),
+                'gender': process_empty_string(row.get('gender')),
                 'email': row.get('email').split(';') if row.get('email') is not None else None,
                 'phone': row.get('phone').split(';') if row.get('phone') is not None else None,
-                'maritalStatus': row.get('maritalStatus'),
-                'income': row.get('income')
+                'maritalStatus': process_empty_string(row.get('maritalStatus')),
+                'income': process_empty_string(row.get('income')) 
             }
 
             insert_data('profile', profile_data,conn)
@@ -291,74 +292,74 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
             # Вставка данных в таблицу basicData
             credentials_data = {
                 'profileId': profile_id,
-                'emails': profile_data['email'],
-                'phones': profile_data['phone']
+                'emails': process_empty_string(profile_data['email']),
+                'phones': process_empty_string(profile_data['phone'])
             }
             insert_data('credentials',credentials_data,conn)
 
             basic_data = {
                 'profileId': profile_id,
-                'interests': row.get('interests'),
+                'interests': process_empty_string(row.get('interests')),
                 'languages': row.get('languages').split(';') if row.get('languages') is not None else None,  # Разделение множественных значений через ;
-                'religionViews': row.get('religionViews'),
-                'politicalViews': row.get('politicalViews'),
+                'religionViews': process_empty_string(row.get('religionViews')),
+                'politicalViews': process_empty_string(row.get('politicalViews')),
             }
             insert_data('basicData', basic_data,conn)
 
             # Вставка данных в таблицу contacts
             contacts_data = {
                 'profileId': profile_id,
-                'mobilePhone': row.get('mobilePhone'),
-                'address': row.get('address'),
+                'mobilePhone': process_empty_string(row.get('mobilePhone')),
+                'address': process_empty_string(row.get('address')),
                 'linkedAccounts': row.get('linkedAccounts').split(';') if row.get('linkedAccounts') is not None else None,
-                'website': row.get('website')
+                'website': process_empty_string(row.get('website'))
             }
             insert_data('contacts', contacts_data,conn)
             workAndEducation = {
                 'profileId':profile_id,
-                'placeOfWork':row.get('placeOfWork'),
+                'placeOfWork':process_empty_string(row.get('placeOfWork')),
                 'skills': row.get('skills').split(';') if row.get('skills') is not None else None,
-                'university':row.get('university'),
-                'faculty': row.get('faculty'),
+                'university':process_empty_string(row.get('university')),
+                'faculty': process_empty_string(row.get('faculty')),
             }
             insert_data('workAndEducation', workAndEducation,conn)
             placeOfResidence = {
                 'profileId': profile_id,
-                'currentCity':row.get('currentCity'),
-                'birthPlace': row.get('birthPlace'),
+                'currentCity':process_empty_string(row.get('currentCity')),
+                'birthPlace': process_empty_string(row.get('birthPlace')),
                 'otherCities':row.get('otherCities').split(';') if row.get('otherCities') is not None else None
             }
             insert_data('placeOfResidence', placeOfResidence,conn)
             personalInterested = {
                 'profileId': profile_id,
-                'briefDescription':row.get('briefDescription'),
-                'hobby':row.get('hobby'),
-                'sport': row.get('sport'),
+                'briefDescription':process_empty_string(row.get('briefDescription')),
+                'hobby':process_empty_string(row.get('hobby')),
+                'sport': process_empty_string(row.get('sport')),
             }
             insert_data('personalInterests',personalInterested,conn)
             deviceInformation = {
                 'profileId':profile_id,
-                'operatingsystem':row.get('operatingSystem'),
-                'displayResolution':row.get('displayResolution'),
-                'browser': row.get('browser'),
-                'ISP': row.get('iSP'),
-                'adBlock': row.get('adBlock'),
+                'operatingsystem':process_empty_string(row.get('operatingSystem')),
+                'displayResolution':process_empty_string(row.get('displayResolution')),
+                'browser': process_empty_string(row.get('browser')),
+                'ISP': process_empty_string(row.get('iSP')),
+                'adBlock': process_empty_string(row.get('adBlock')),
             }
             insert_data('deviceInformation', deviceInformation,conn)
             cookies = {
                 'profileId': profile_id,
-                'sessionState':row.get('sessionState'),
-                'language': row.get('language'),
-                'region': row.get('region'),
+                'sessionState':process_empty_string(row.get('sessionState')),
+                'language': process_empty_string(row.get('language')),
+                'region': process_empty_string(row.get('region')),
                 'recentPages':row.get('recentPages').split(';') if row.get('recentPages') is not None else None,
-                'productName':row.get('productName'),
-                'productPrice':row.get('productPrice'),
-                'quantity': row.get('quantity'),
-                'subTotal': row.get('subtotal'),
-                'total': row.get('total'),
-                'couponCode': row.get('couponCode'),
-                'shippingInformation': row.get('shippingInformation'),
-                'taxInformation': row.get('taxInformation')
+                'productName':process_empty_string(row.get('productName')),
+                'productPrice':process_empty_string(row.get('productPrice')),
+                'quantity': process_empty_string(row.get('quantity')),
+                'subTotal': process_empty_string(row.get('subtotal')),
+                'total': process_empty_string(row.get('total')),
+                'couponCode': process_empty_string(row.get('couponCode')),
+                'shippingInformation': process_empty_string(row.get('shippingInformation')),
+                'taxInformation': process_empty_string(row.get('taxInformation'))
             }
             insert_data('cookies', cookies,conn)
             settings = {
