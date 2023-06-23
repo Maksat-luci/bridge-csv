@@ -269,14 +269,14 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
         }
         insert_data('datasets', dataset_data,conn)
         dataset_id = get_dataset_id(dataset_data['name'],conn)
-
+        print(reader)
         for row in reader:
             row = {k.lower(): v for k, v in row.items()}  
             profile_data = {
                 'datasetsId': dataset_id,
-                'firstName': row.get('firstname'),
-                'lastName': row.get('lastname'),
-                'dateOfBirth': row.get('dateofbirth') or row.get('datebirth'),
+                'firstName': row.get('firstName'),
+                'lastName': row.get('lastName'),
+                'dateOfBirth': row.get('dateOfBirth'),
                 'gender': row.get('gender'),
                 'email': row.get('email').split(';') if row.get('email') is not None else None,
                 'phone': row.get('phone').split(';') if row.get('phone') is not None else None,
@@ -300,23 +300,23 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
                 'profileId': profile_id,
                 'interests': row.get('interests'),
                 'languages': row.get('languages').split(';') if row.get('languages') is not None else None,  # Разделение множественных значений через ;
-                'religionViews': row.get('religionviews'),
-                'politicalViews': row.get('politicalviews'),
+                'religionViews': row.get('religionViews'),
+                'politicalViews': row.get('politicalViews'),
             }
             insert_data('basicData', basic_data,conn)
 
             # Вставка данных в таблицу contacts
             contacts_data = {
                 'profileId': profile_id,
-                'mobilePhone': row.get('mobilephone'),
+                'mobilePhone': row.get('mobilePhone'),
                 'address': row.get('address'),
-                'linkedAccounts': row.get('linkedaccounts').split(';') if row.get('linkedaccounts') is not None else None,
+                'linkedAccounts': row.get('linkedAccounts').split(';') if row.get('linkedAccounts') is not None else None,
                 'website': row.get('website')
             }
             insert_data('contacts', contacts_data,conn)
             workAndEducation = {
                 'profileId':profile_id,
-                'placeOfWork':row.get('placeofwork'),
+                'placeOfWork':row.get('placeOfWork'),
                 'skills': row.get('skills').split(';') if row.get('skills') is not None else None,
                 'university':row.get('university'),
                 'faculty': row.get('faculty'),
@@ -324,41 +324,41 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
             insert_data('workAndEducation', workAndEducation,conn)
             placeOfResidence = {
                 'profileId': profile_id,
-                'currentCity':row.get('currentcity'),
-                'birthPlace': row.get('birthplace'),
-                'otherCities':row.get('othercities').split(';') if row.get('othercities') is not None else None
+                'currentCity':row.get('currentCity'),
+                'birthPlace': row.get('birthPlace'),
+                'otherCities':row.get('otherCities').split(';') if row.get('otherCities') is not None else None
             }
             insert_data('placeOfResidence', placeOfResidence,conn)
             personalInterested = {
                 'profileId': profile_id,
-                'briefDescription':row.get('briefdescription'),
+                'briefDescription':row.get('briefDescription'),
                 'hobby':row.get('hobby'),
                 'sport': row.get('sport'),
             }
             insert_data('personalInterests',personalInterested,conn)
             deviceInformation = {
                 'profileId':profile_id,
-                'operatingsystem':row.get('operatingsystem'),
-                'displayResolution':row.get('displayresolution'),
+                'operatingsystem':row.get('operatingSystem'),
+                'displayResolution':row.get('displayResolution'),
                 'browser': row.get('browser'),
-                'ISP': row.get('isp'),
-                'adBlock': row.get('adblock'),
+                'ISP': row.get('iSP'),
+                'adBlock': row.get('adBlock'),
             }
             insert_data('deviceInformation', deviceInformation,conn)
             cookies = {
                 'profileId': profile_id,
-                'sessionState':row.get('sessionstate'),
+                'sessionState':row.get('sessionState'),
                 'language': row.get('language'),
                 'region': row.get('region'),
-                'recentPages':row.get('recentpages').split(';') if row.get('recentpages') is not None else None,
-                'productName':row.get('productname'),
-                'productPrice':row.get('productprice'),
+                'recentPages':row.get('recentPages').split(';') if row.get('recentPages') is not None else None,
+                'productName':row.get('productName'),
+                'productPrice':row.get('productPrice'),
                 'quantity': row.get('quantity'),
                 'subTotal': row.get('subtotal'),
                 'total': row.get('total'),
-                'couponCode': row.get('couponcode'),
-                'shippingInformation': row.get('shippinginformation'),
-                'taxInformation': row.get('taxinformation')
+                'couponCode': row.get('couponCode'),
+                'shippingInformation': row.get('shippingInformation'),
+                'taxInformation': row.get('taxInformation')
             }
             insert_data('cookies', cookies,conn)
             settings = {
@@ -378,8 +378,8 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
 
 def execute_query(query, data=None):
     conn = psycopg2.connect(
-        host="db",
-        port="5432",
+        host="localhost",
+        port="5858",
         dbname="bridge-db",
         user="postgres",
         password="postgres"

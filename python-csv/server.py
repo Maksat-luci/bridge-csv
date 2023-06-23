@@ -40,8 +40,8 @@ CORS(app)
 def Connect_db(): 
     try:
         conn = psycopg2.connect(
-            host="db",
-            port="5432",
+            host="localhost",
+            port="5858",
             dbname="bridge-db",
             user="postgres",
             password="postgres"
@@ -445,13 +445,13 @@ def update_csv():
         dataset_name = request.form.get('datasetName')
         csv_file_f = request.files.get('csv')
 
-        if csv_file is None:
+        if csv_file_f is None:
             return 'No file uploaded', 400
-        csv_file = mapper.process_csv_files(csv_file_f)
-        csv_file.save(os.path.join(os.getcwd(), csv_file.filename))
+        csv_dataframe = mapper.process_csv_files(csv_file_f)
+        csv_dataframe.to_csv("data.csv", index=False)
 
-        print("file saved")   
-        updatepostgres(csv_file.filename, dataset_name)
+        print("file saved")
+        updatepostgres("data.csv", dataset_name)
         SendPostRequest(dataset_name)
 
         return {"code":200, "response":"successfully"}
