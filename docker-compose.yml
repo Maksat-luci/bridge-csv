@@ -1,5 +1,13 @@
 version: '3'
 services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30
+    networks:
+      - myappnetwork
   python:
     build: ./python-csv
     container_name: python-csv
@@ -9,7 +17,8 @@ services:
       - myappnetwork
     depends_on:
       - db
-    command: gunicorn -b 0.0.0.0:8000 server:app
+      - alembic
+    command: bash -c "gunicorn -b 0.0.0.0:8000 server:app && alembic upgrade head"
   db:
     image: postgres:latest
     restart: always
