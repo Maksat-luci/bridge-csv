@@ -395,7 +395,7 @@ def get_profile():
         return jsonify({'error': str(e)}), 500
     
 
-@app.route('/updatecsv', methods=['POST','GET'])
+@app.route('/upload', methods=['POST','GET'])
 def update_csv():
     """
     Update CSV data.
@@ -576,17 +576,6 @@ def get_credentials():
 def updatepostgres(filenamecsv,dataset_name):
     connect_db = Connect_db()
     print(connect_db)
-    print(db.Create_Table_Datasets(connect_db))
-    print(db.Create_Table_Profile(connect_db))
-    print(db.Create_Table_Credentials(connect_db))
-    print(db.Create_Table_BasicData(connect_db))
-    print(db.Create_Table_Contacts(connect_db))
-    print(db.Create_Table_WorkdAndEducation(connect_db))
-    print(db.Create_Table_PlaceOfResidence(connect_db))
-    print(db.Create_Table_PersonalInterested(connect_db))
-    print(db.Create_Table_DeviceInformation(connect_db))
-    print(db.Create_Table_Cookies(connect_db))
-    print(db.Create_Table_Settings(connect_db))
     db.SaveDataInCsv(connect_db,filenamecsv,dataset_name)
 
 if __name__ == '__main__':

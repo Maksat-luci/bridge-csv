@@ -10,7 +10,7 @@ Base = declarative_base()
 
 class Datasets(Base):
     __tablename__ = 'datasets'
-    id = Column(String, primary_key=True)
+    id = Column(postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('uuid_generate_v4()'))    
     name = Column(String)
     filename = Column(String)
 
@@ -18,13 +18,13 @@ class Datasets(Base):
 class Profile(Base):
     __tablename__ = 'profile'
     id = Column(Integer, primary_key=True)
-    datasetsId = Column(String, ForeignKey('datasets.id'))
+    datasetsId = Column(Integer, ForeignKey('datasets.id'))
     firstName = Column(String)
     lastName = Column(String)
     dateOfBirth = Column(String)
     gender = Column(String)
-    email = Column(Text)
-    phone = Column(Text)
+    email = Column(postgresql.ARRAY(String), nullable=True)
+    phone = Column(postgresql.ARRAY(String), nullable=True)
     maritalStatus = Column(Integer)
     income = Column(Integer)
 
@@ -43,7 +43,7 @@ class Contacts(Base):
     profileId = Column(Integer, ForeignKey('profile.id'))
     mobilePhone = Column(String)
     address = Column(String)
-    linkedAccounts = Column(Text)
+    linkedAccounts = Column(postgresql.ARRAY(String), nullable=True)
     website = Column(String)
 
 
@@ -53,7 +53,7 @@ class PlaceOfResidence(Base):
     profileId = Column(Integer, ForeignKey('profile.id'))
     currentCity = Column(String)
     birthPlace = Column(String)
-    otherCities = Column(Text)
+    otherCities = Column(postgresql.ARRAY(String), nullable=True)
 
 
 class PersonalInterests(Base):
@@ -83,7 +83,7 @@ class Cookies(Base):
     sessionState = Column(Text)
     language = Column(String)
     region = Column(String)
-    recentPages = Column(Text)
+    recentPages = Column(postgresql.ARRAY(String), nullable=True)
     productId = Column(Integer)
     productName = Column(String)
     productPrice = Column(Integer)
@@ -100,12 +100,12 @@ class Settings(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String)
     profileId = Column(Integer, ForeignKey('profile.id'))
-    profileIds = Column(Text)
-    basicDataIds = Column(Text)
-    contactsIds = Column(Text)
-    workAndEducationIds = Column(Text)
-    placeOfResidenceIds = Column(Text)
-    personalInterestsIds = Column(Text)
+    profileIds = Column(postgresql.ARRAY(Integer), nullable=True)
+    basicDataIds = Column(postgresql.ARRAY(Integer), nullable=True)
+    contactsIds = Column(postgresql.ARRAY(Integer), nullable=True)
+    workAndEducationIds = Column(postgresql.ARRAY(Integer), nullable=True)
+    placeOfResidenceIds = Column(postgresql.ARRAY(Integer), nullable=True)
+    personalInterestsIds = Column(postgresql.ARRAY(Integer), nullable=True)
 
 
 class WorkAndEducation(Base):
@@ -113,7 +113,7 @@ class WorkAndEducation(Base):
     id = Column(Integer, primary_key=True)
     profileId = Column(Integer, ForeignKey('profile.id'))
     placeOfWork = Column(String)
-    skills = Column(Text)
+    skills = Column(postgresql.ARRAY(String), nullable=True)
     university = Column(String)
     faculty = Column(String)
 
@@ -123,7 +123,7 @@ class BasicData(Base):
     id = Column(Integer, primary_key=True)
     profileId = Column(Integer, ForeignKey('profile.id'))
     interests = Column(Text)
-    languages = Column(Text)
+    languages = Column(postgresql.ARRAY(String), nullable=True)
     religionViews = Column(String)
     politicalViews = Column(String)
 
@@ -131,7 +131,7 @@ class BasicData(Base):
 def upgrade():
     op.create_table(
         'datasets',
-        sa.Column('id', sa.String(), primary_key=True),
+        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('uuid_generate_v4()')),        
         sa.Column('name', sa.String(), nullable=True),
         sa.Column('filename', sa.String(), nullable=True)
     )
@@ -248,6 +248,7 @@ def upgrade():
         sa.Column('religionViews', sa.String(), nullable=True),
         sa.Column('politicalViews', sa.String(), nullable=True)
     )
+
 
 
 

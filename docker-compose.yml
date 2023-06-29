@@ -18,7 +18,7 @@ services:
     depends_on:
       - db
       - alembic
-    command: bash -c "gunicorn -b 0.0.0.0:8000 server:app && alembic upgrade head"
+    command: bash -c "sleep 4 && alembic upgrade head && gunicorn -b 0.0.0.0:8000 server:app"
   db:
     image: postgres:latest
     restart: always
