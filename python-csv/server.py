@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify,render_template
+from flask import Flask, redirect, request, jsonify,render_template, render_template_string
 from flask_cors import CORS
 import psycopg2 
 import db
@@ -8,20 +8,19 @@ import requests
 from flasgger import Swagger
 import mapper
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Максимальный размер файла в байтах (здесь 16 МБ)
 swagger_config = {
     "headers": [],
     "specs": [
         {
-            "endpoint": 'swagger',
-            "route": '/swagger.json',
+            "endpoint": 'allowed-swagger',
+            "route": '/allowed-swagger/swagger.json',  # Обновленный путь к swagger.json
             "rule_filter": lambda rule: True,  
             "model_filter": lambda tag: True,  
         }
     ],
     "static_url_path": "/flasgger_static",
     "swagger_ui": True,
-    "specs_route": "/swagger"
+    "specs_route": "/allowed-swagger"  # Обновленный путь для доступа к Swagger UI
 }
 swagger = Swagger(app, template={
     "swagger": "2.0",
@@ -36,6 +35,7 @@ swagger = Swagger(app, template={
     ],
 }, config=swagger_config)
 CORS(app)
+
 
 def Connect_db(): 
     try:
@@ -394,8 +394,22 @@ def get_profile():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+@app.route('/swagger',methods=['GET','POST'])
+def show_swagger():
+    if request.method == 'POST':
+      auth_token = os.getenv('AUTH_TOKEN')
+      if request.form.get('token') != auth_token:
+        return redirect('/unauthorized')
+      return redirect('/allowed-swagger')
+    
+    return render_template('verify.html')
 
-@app.route('/upload', methods=['POST','GET'])
+@app.route('/unauthorized')
+def unauthorized():
+    return render_template('unauthorized.html')
+
+
+@app.route('/upload', methods=['POST', 'GET'])
 def update_csv():
     """
     Update CSV data.
@@ -442,6 +456,11 @@ def update_csv():
     """
 
     if request.method == 'POST':
+        auth_token = os.getenv('AUTH_TOKEN')
+
+        if request.form.get('token') != auth_token:
+            return render_template('unauthorized.html')
+
         dataset_name = request.form.get('datasetName')
         csv_file_f = request.files.get('csv')
 
@@ -454,9 +473,45 @@ def update_csv():
         updatepostgres("data.csv", dataset_name)
         SendPostRequest(dataset_name)
 
-        return {"code":200, "response":"successfully"}
-    return render_template('upload.html')
+        return render_template_string('''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Success Message</title>
+                <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                    }
+                    .success-message {
+                        text-align: center;
+                        margin-top: 50px;
+                    }
+                    .success-message h2 {
+                        color: #28a745;
+                    }
+                    .success-message p {
+                        margin-bottom: 20px;
+                    }
+                    .emoji {
+                        font-size: 60px;
+                        margin-top: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="success-message">
+                        <h2>Request completed successfully</h2>
+                        <p>Your dataset has been successfully uploaded to MDC.</p>
+                        <div class="emoji">😻</div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        ''')
 
+    return render_template('upload.html')
 
 def get_row_count(conn, table_name):
     cursor = conn.cursor()

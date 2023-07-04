@@ -5,22 +5,26 @@ services:
     container_name: watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 30
-    networks:
-      - myappnetwork
-  python:
-    build: ./python-csv
-    container_name: python-csv
-    ports:
-      - 8000:8000
-    environment:
-      - AUTH_TOKEN=maxsimus
+    command: --interval 300
+    restart: always
     networks:
       - myappnetwork
     depends_on:
+      - python
+
+  python:
+    image: amaymon8/mdc-python-csv:latest
+    container_name: python-csv
+    ports:
+      - 8000:8000
+    networks:
+      - myappnetwork
+    environment:
+      - AUTH_TOKEN=enter your token here
+    depends_on:
       - db
-      - alembic
-    command: bash -c "sleep 4 && alembic upgrade head && gunicorn -b 0.0.0.0:8000 server:app"
+    restart: always
+    command: bash -c "sleep 10 && alembic upgrade head && gunicorn -b 0.0.0.0:8000 server:app"
   db:
     image: postgres:latest
     restart: always
@@ -35,15 +39,6 @@ services:
       - myappnetwork
     volumes:
       - ./data:/var/lib/postgresql/data
-
-  alembic:
-    build: ./python-csv
-    container_name: alembic
-    depends_on:
-      - db
-    networks:
-      - myappnetwork
-    command: bash -c "sleep 10 && alembic revision --autogenerate -m 'Initial migration' && alembic upgrade head"
 
 networks:
   myappnetwork:
