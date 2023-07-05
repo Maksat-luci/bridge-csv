@@ -7,6 +7,10 @@ from psycopg2 import sql
 import requests
 from flasgger import Swagger
 import mapper
+import json
+import hashlib
+from cryptography.fernet import Fernet
+import base64
 app = Flask(__name__)
 swagger_config = {
     "headers": [],
@@ -300,23 +304,23 @@ def get_profile():
 
     try:
         query = """
-        SELECT p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.email, p.phone, p.maritalStatus, p.income,
-               bd.interests, bd.languages, bd.religionViews, bd.politicalViews,
-               c.mobilePhone, c.address, c.linkedAccounts, c.website,
-               w.placeOfWork, w.skills, w.university, w.faculty,
-               pr.currentCity, pr.birthPlace, pr.otherCities,
-               pi.briefDescription, pi.hobby, pi.sport,
-               di.operatingSystem, di.displayResolution, di.browser, di.ISP, di.adBlock,
-               co.sessionState, co.language, co.region, co.recentPages, co.productId, co.productName, co.productPrice,
-               co.quantity, co.subTotal, co.total, co.couponCode, co.shippingInformation, co.taxInformation
+        SELECT p.id, p.firstname, p.lastname, p.dateofbirth, p.gender, p.email, p.phone, p.maritalstatus, p.income,
+               bd.interests, bd.languages, bd.religionviews, bd.politicalviews,
+               c.mobilephone, c.address, c.linkedaccounts, c.website,
+               w.placeofwork, w.skills, w.university, w.faculty,
+               pr.currentcity, pr.birthplace, pr.othercities,
+               pi.briefdescription, pi.hobby, pi.sport,
+               di.operatingsystem, di.displayresolution, di.browser, di.isp, di.adblock,
+               co.sessionstate, co.language, co.region, co.recentpages, co.productid, co.productname, co.productprice,
+               co.quantity, co.subtotal, co.total, co.couponcode, co.shippinginformation, co.taxinformation
         FROM profile p
-        LEFT JOIN basicData bd ON p.id = bd.profileId
-        LEFT JOIN contacts c ON p.id = c.profileId
-        LEFT JOIN workAndEducation w ON p.id = w.profileId
-        LEFT JOIN placeOfResidence pr ON p.id = pr.profileId
-        LEFT JOIN personalInterests pi ON p.id = pi.profileId
-        LEFT JOIN deviceInformation di ON p.id = di.profileId
-        LEFT JOIN cookies co ON p.id = co.profileId
+        LEFT JOIN basicdata bd ON p.id = bd.profileid
+        LEFT JOIN contacts c ON p.id = c.profileid
+        LEFT JOIN workandeducation w ON p.id = w.profileid
+        LEFT JOIN placeofresidence pr ON p.id = pr.profileid
+        LEFT JOIN personalinterests pi ON p.id = pi.profileid
+        LEFT JOIN deviceinformation di ON p.id = di.profileid
+        LEFT JOIN cookies co ON p.id = co.profileid
         WHERE p.email = %s
         """
         result = db.execute_query(query, ([email],))
@@ -326,73 +330,145 @@ def get_profile():
 
         profile_data = {
             'profile': {
-            'id': result[0][0],
-            'firstName': result[0][1],
-            'lastName': result[0][2],
-            'dateOfBirth': str(result[0][3]),
-            'gender': result[0][4],
-            'email': result[0][5],
-            'phone': result[0][6],
-            'maritalStatus': result[0][7],
-            'income': result[0][8],
+            'id': hash_data(result[0][0]),
+            'firstName': hash_data(result[0][1]),
+            'lastName': hash_data(result[0][2]),
+            'dateOfBirth': hash_data(str(result[0][3])),
+            'gender': hash_data(result[0][4]),
+            'email': hash_data(result[0][5]),
+            'phone': hash_data(result[0][6]),
+            'maritalStatus': hash_data(result[0][7]),
+            'income': hash_data(result[0][8]),
             },
 
             'basicData': {
-                'interests': result[0][9],
-                'languages': result[0][10],
-                'religionViews': result[0][11],
-                'politicalViews': result[0][12]
+                'interests': hash_data(result[0][9]),
+                'languages': hash_data(result[0][10]),
+                'religionViews': hash_data(result[0][11]),
+                'politicalViews': hash_data(result[0][12])
             },
             'contacts': {
-                'mobilePhone': result[0][13],
-                'address': result[0][14],
-                'linkedAccounts': result[0][15],
-                'website': result[0][16]
+                'mobilePhone': hash_data(result[0][13]),
+                'address': hash_data(result[0][14]),
+                'linkedAccounts': hash_data(result[0][15]),
+                'website': hash_data(result[0][16])
             },
             'workAndEducation': {
-                'placeOfWork': result[0][17],
-                'skills': result[0][18],
-                'university': result[0][19],
-                'faculty': result[0][20]
+                'placeOfWork': hash_data(result[0][17]),
+                'skills': hash_data(result[0][18]),
+                'university': hash_data(result[0][19]),
+                'faculty': hash_data(result[0][20])
             },
             'placeOfResidence': {
-                'currentCity': result[0][21],
-                'birthPlace': result[0][22],
-                'otherCities': result[0][23]
+                'currentCity': hash_data(result[0][21]),
+                'birthPlace': hash_data(result[0][22]),
+                'otherCities': hash_data(result[0][23])
             },
             'personalInterests': {
-                'briefDescription': result[0][24],
-                'hobby': result[0][25],
-                'sport': result[0][26]
+                'briefDescription': hash_data(result[0][24]),
+                'hobby': hash_data(result[0][25]),
+                'sport': hash_data(result[0][26])
             },
             'deviceInformation': {
-                'operatingSystem': result[0][27],
-                'displayResolution': result[0][28],
-                'browser': result[0][29],
-                'ISP': result[0][30],
-                'adBlock': result[0][31]
+                'operatingSystem': hash_data(result[0][27]),
+                'displayResolution': hash_data(result[0][28]),
+                'browser': hash_data(result[0][29]),
+                'ISP': hash_data(result[0][30]),
+                'adBlock': hash_data(result[0][31])
             },
             'cookies': {
-                'sessionState': result[0][32],
-                'language': result[0][33],
-                'region': result[0][34],
-                'recentPages': result[0][35],
-                'productId': result[0][36],
-                'productName': result[0][37],
-                'productPrice': result[0][38],
-                'quantity': result[0][39],
-                'subTotal': result[0][40],
-                'total': result[0][41],
-                'couponCode': result[0][42],
-                'shippingInformation': result[0][43],
-                'taxInformation': result[0][44]
+                'sessionState': hash_data(result[0][32]),
+                'language': hash_data(result[0][33]),
+                'region': hash_data(result[0][34]),
+                'recentPages': hash_data(result[0][35]),
+                'productId': hash_data(result[0][36]),
+                'productName': hash_data(result[0][37]),
+                'productPrice': hash_data(result[0][38]),
+                'quantity': hash_data(result[0][39]),
+                'subTotal': hash_data(result[0][40]),
+                'total': hash_data(result[0][41]),
+                'couponCode': hash_data(result[0][42]),
+                'shippingInformation': hash_data(result[0][43]),
+                'taxInformation': hash_data(result[0][44])
             }
         }
-
-        return jsonify({'Data': profile_data}), 200
+        decrypted_profile_data = decrypt_dict_values(profile_data)
+        return jsonify({'Data': profile_data, "encrypted": decrypted_profile_data}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+def decrypt_dict_values(data):
+    decrypted_data = {}
+
+    for key, value in data.items():
+        if isinstance(value, dict):
+            decrypted_data[key] = decrypt_dict_values(value)
+        else:
+            decrypted_data[key] = decrypt_data(value)
+
+    return decrypted_data
+
+def decrypt_data(encrypted_data):
+    if encrypted_data is None:
+      return None
+    try:
+        salt = os.getenv('AUTH_TOKEN')
+        decrypted_values = []
+
+        if isinstance(encrypted_data, list):
+            for item in encrypted_data:
+                key = base64.urlsafe_b64encode(hashlib.sha256(salt.encode()).digest())
+                cipher = Fernet(key)
+                decrypted_data = cipher.decrypt(item.encode('utf-8')).decode('utf-8')
+                decrypted_data = decrypted_data[len(salt):]
+
+                decrypted_values.append(decrypted_data)
+        else:
+            key = base64.urlsafe_b64encode(hashlib.sha256(salt.encode()).digest())
+            cipher = Fernet(key)
+            decrypted_data = cipher.decrypt(encrypted_data.encode('utf-8')).decode('utf-8')
+            decrypted_data = decrypted_data[len(salt):]
+            return decrypted_data
+
+        return decrypted_values
+
+    except Exception as e:
+        print("Ошибка при отхэшировании данных:", str(e))
+        return None
+
+
+
+def hash_data(data):
+    if data is None:
+      return None
+    try:
+        salt = os.getenv('AUTH_TOKEN')
+        hashed_values = []
+
+        if isinstance(data, int):
+            data = str(data)
+        if isinstance(data, list):
+            for item in data:
+                item = str(item)
+                salted_data = salt + item
+                key = base64.urlsafe_b64encode(hashlib.sha256(salt.encode()).digest())
+                cipher = Fernet(key)
+                encrypted_data = cipher.encrypt(salted_data.encode('utf-8'))
+                hashed_values.append(encrypted_data.decode('utf-8'))
+        else:
+            data = str(data)
+            salted_data = salt + data
+            key = base64.urlsafe_b64encode(hashlib.sha256(salt.encode()).digest())
+            cipher = Fernet(key)
+            encrypted_data = cipher.encrypt(salted_data.encode('utf-8'))
+            return encrypted_data.decode('utf-8')
+
+        return hashed_values
+
+    except Exception as e:
+        print("Ошибка при хэшировании данных:", str(e))
+        return None
     
 @app.route('/swagger',methods=['GET','POST'])
 def show_swagger():

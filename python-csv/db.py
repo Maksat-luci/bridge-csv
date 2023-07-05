@@ -1,6 +1,5 @@
 import csv
 import psycopg2 
-# from sqlalchemy.dialects.postgresql import UUID 
 import uuid
 
 
@@ -12,7 +11,6 @@ def insert_data(table_name, data, conn):
         values = tuple(data.values())
         placeholders = ', '.join(['%s'] * len(data))
         query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-        print(query)
         cursor.execute(query, values)
         conn.commit()
         cursor.close()
@@ -60,7 +58,6 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
         insert_data('datasets', dataset_data,conn)
         # dataset_id = get_dataset_id(dataset_data['name'],conn)
         for row in reader:
-            print(row)
             profile_data = {
                 'datasetsid': dataset_data.get('id'),
                 'firstname': process_empty_string(row.get('firstName')),
