@@ -5,7 +5,7 @@ services:
     container_name: watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 300
+    command: --interval 300 --filter "name=python-csv"
     restart: always
     networks:
       - myappnetwork
@@ -24,7 +24,7 @@ services:
     depends_on:
       - db
     restart: always
-    command: bash -c "sleep 10 && alembic upgrade head && gunicorn -b 0.0.0.0:8000 server:app"
+    command: bash -c "sleep 10 && alembic upgrade head && gunicorn -b 0.0.0.0:8000 server:app && docker image prune -f"
   db:
     image: postgres:latest
     restart: always

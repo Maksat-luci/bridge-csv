@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, jsonify,render_template, render_template_string
+from flask import Flask, redirect, request, jsonify,render_template, render_template_string,Response
 from flask_cors import CORS
 import psycopg2 
 import db
@@ -7,10 +7,17 @@ from psycopg2 import sql
 import requests
 from flasgger import Swagger
 import mapper
-import json
 import hashlib
 from cryptography.fernet import Fernet
 import base64
+import csv
+import io
+from io import StringIO
+from flask import Flask, request, jsonify, send_file
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from models import Base, Profile, Settings, Credentials, Contacts, PlaceOfResidence, PersonalInterests, \
+    DeviceInformation, Cookies, WorkAndEducation, BasicData
 app = Flask(__name__)
 swagger_config = {
     "headers": [],
@@ -144,13 +151,13 @@ def setUserPrivacy():
         return jsonify({'error': 'Invalid request body'}), 400
 
     try:
-        query = sql.SQL("SELECT * FROM settings WHERE email = %s")
+        query = sql.SQL("SELECT * FROM settings WHERE %s = ANY(email)")
         result = db.execute_query(query, (email,))
 
         if not result:
             return jsonify({'error': 'Email not found'}), 404
 
-        query = sql.SQL("UPDATE settings SET {} = %s WHERE email = %s")
+        query = sql.SQL("UPDATE settings SET {} = %s WHERE %s = ANY(email)")
         query = query.format(sql.Identifier(category))
         db.execute_query(query, (settings_value, email))
 
@@ -304,7 +311,7 @@ def get_profile():
 
     try:
         query = """
-        SELECT p.id, p.firstname, p.lastname, p.dateofbirth, p.gender, p.email, p.phone, p.maritalstatus, p.income,
+        SELECT DISTINCT p.id, p.firstname, p.lastname, p.dateofbirth, p.gender, p.email, p.phone, p.maritalstatus, p.income,
                bd.interests, bd.languages, bd.religionviews, bd.politicalviews,
                c.mobilephone, c.address, c.linkedaccounts, c.website,
                w.placeofwork, w.skills, w.university, w.faculty,
@@ -321,9 +328,10 @@ def get_profile():
         LEFT JOIN personalinterests pi ON p.id = pi.profileid
         LEFT JOIN deviceinformation di ON p.id = di.profileid
         LEFT JOIN cookies co ON p.id = co.profileid
-        WHERE p.email = %s
+        WHERE %s = ANY(p.email)
         """
-        result = db.execute_query(query, ([email],))
+        
+        result = db.execute_query(query, (email,))
 
         if not result:
             return jsonify({'error': 'No profile found for the provided email'}), 404
@@ -374,7 +382,7 @@ def get_profile():
                 'displayResolution': hash_data(result[0][28]),
                 'browser': hash_data(result[0][29]),
                 'ISP': hash_data(result[0][30]),
-                'adBlock': hash_data(result[0][31])
+                'adBlock': hash_data(bool(result[0][31]))
             },
             'cookies': {
                 'sessionState': hash_data(result[0][32]),
@@ -392,8 +400,7 @@ def get_profile():
                 'taxInformation': hash_data(result[0][44])
             }
         }
-        decrypted_profile_data = decrypt_dict_values(profile_data)
-        return jsonify({'Data': profile_data, "encrypted": decrypted_profile_data}), 200
+        return jsonify({'Data': profile_data}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -682,7 +689,6 @@ def get_credentials():
     try:
         cursor.execute(query)
         credentials = cursor.fetchall()
-        # Преобразуйте данные в формат JSON
         credentials_json = []
         for credential in credentials:
             credential_data = {
@@ -692,7 +698,6 @@ def get_credentials():
             }
             credentials_json.append(credential_data)
         
-        # Отправьте данные в ответе в формате JSON
         return jsonify({'credentials': credentials_json})
     except psycopg2.Error as e:
         print("Error retrieving credentials:", e)
@@ -704,10 +709,275 @@ def get_credentials():
 
 
 
+@app.route('/api/v1/get-count-settings', methods=['POST'])
+def process_request():
+    """
+    Получение счетчиков настроек по идентификатору набора данных.
+
+    ---
+    tags:
+      - API
+    parameters:
+      - name: datasetid
+        in: body
+        description: Идентификатор набора данных
+        required: true
+        schema:
+          type: object
+          properties:
+            datasetid:
+              type: integer
+        example:
+          datasetid: 1
+    responses:
+      200:
+        description: Успешный запрос. Возвращает счетчики настроек.
+        schema:
+          type: object
+          properties:
+            data:
+              $ref: '#/definitions/SettingsCount'
+      500:
+        description: Внутренняя ошибка сервера. Возвращает сообщение об ошибке.
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+    """
+    try:
+        auth_token = os.getenv('AUTH_TOKEN')
+
+        if request.headers.get('Authorization') != auth_token:
+          return jsonify({'error': 'Invalid token'}), 401 
+        conn = Connect_db()
+        cursor = conn.cursor()
+        dataset_id = request.json.get('datasetid')
+        query = """
+        SELECT * FROM profile WHERE datasetsid = %s;
+        """
+        cursor.execute(query, (dataset_id,))
+        profiles = cursor.fetchall()
+    
+        result = {'datasetid': dataset_id,
+                  'profileids': {
+                      'collection': 0,
+                      'proccessing':0,
+                      'monetize':0
+                  },
+                  'basicdataids': {
+                      'collection': 0,
+                      'proccessing':0,
+                      'monetize':0
+                  },
+                  'contactsids': {
+                      'collection': 0,
+                      'proccessing':0,
+                      'monetize':0
+                  },
+                  'workandeducationids': {
+                      'collection': 0,
+                      'proccessing':0,
+                      'monetize':0
+                  },
+                  'placeofresidenceids': {
+                      'collection': 0,
+                      'proccessing':0,
+                      'monetize':0
+                  },
+                  'personalinterestsids': {
+                      'collection': 0,
+                      'proccessing':0,
+                      'monetize':0
+                  },                  
+                  }
+    
+        for profile in profiles:
+            profile_id = profile[0]
+
+            # Запрос для получения связанных настроек для заданного профиля
+            query = """
+            SELECT * FROM settings WHERE profileid = %s;
+            """
+            cursor.execute(query, (profile_id,))
+            settings = cursor.fetchone()
+            if settings:
+                # Извлечение значений из массивов полей
+                profileids = settings[3]
+                basicdataids = settings[4]
+                contactsids = settings[5]
+                workandeducationids = settings[6]
+                placeofresidenceids = settings[7]
+                personalinterestsids = settings[8]
+
+                # Суммирование первых значений
+                profileids_sum = sum(profileids[:1]) if profileids else 0
+                result['profileids']['collection'] += profileids_sum 
+                profileids_second_sum = sum(profileids[1:2]) if len(profileids) >= 2 else 0
+                result['profileids']['proccessing'] += profileids_second_sum 
+                profileids_third_sum = sum(profileids[2:3]) if len(profileids) >= 3 else 0
+                result['profileids']['monetize'] += profileids_third_sum
+
+                basicdataids_sum = sum(basicdataids[:1]) if basicdataids else 0
+                result['basicdataids']['collection'] += basicdataids_sum
+                basicdataids_second_sum = sum(basicdataids[1:2]) if len(basicdataids) >= 2 else 0
+                result['basicdataids']['proccessing'] += basicdataids_second_sum
+                basicdataids_third_sum = sum(basicdataids[2:3]) if len(basicdataids) >= 3 else 0
+                result['basicdataids']['monetize'] += basicdataids_third_sum
+
+                contactsids_sum = sum(contactsids[:1]) if contactsids else 0
+                result['contactsids']['collection'] += contactsids_sum
+                contactsids_second_sum = sum(contactsids[1:2]) if len(contactsids) >= 2 else 0
+                result['contactsids']['proccessing'] += contactsids_second_sum
+                contactsids_third_sum = sum(contactsids[2:3]) if len(contactsids) >= 3 else 0         
+                result['contactsids']['monetize'] += contactsids_third_sum
+                
+                workandeducationids_sum = sum(workandeducationids[:1]) if workandeducationids else 0
+                result['workandeducationids']['collection'] += workandeducationids_sum
+                workandeducationids_second_sum = sum(workandeducationids[1:2]) if len(workandeducationids) >= 2 else 0
+                result['workandeducationids']['proccessing'] += workandeducationids_second_sum
+                workandeducationids_third_sum = sum(workandeducationids[2:3]) if len(workandeducationids) >= 3 else 0
+                result['workandeducationids']['monetize'] += workandeducationids_third_sum
+                
+                placeofresidenceids_sum = sum(placeofresidenceids[:1]) if placeofresidenceids else 0
+                result['placeofresidenceids']['collection'] += placeofresidenceids_sum
+                placeofresidenceids_second_sum = sum(placeofresidenceids[1:2]) if placeofresidenceids else 0
+                result['placeofresidenceids']['proccessing'] += placeofresidenceids_second_sum
+                placeofresidenceids_third_sum = sum(placeofresidenceids[2:3]) if placeofresidenceids else 0
+                result['placeofresidenceids']['monetize'] += placeofresidenceids_third_sum
+
+                personalinterestsids_sum = sum(personalinterestsids[:1]) if personalinterestsids else 0
+                result['personalinterestsids']['collection'] += personalinterestsids_sum
+                personalinterestsids_second_sum = sum(personalinterestsids[1:2]) if personalinterestsids else 0
+                result['personalinterestsids']['proccessing'] += personalinterestsids_second_sum
+                personalinterestsids_third_sum = sum(personalinterestsids[2:3]) if personalinterestsids else 0
+                result['personalinterestsids']['monetize'] += personalinterestsids_third_sum
+
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({'data': result}), 200
+
+    except Exception as e:
+        error_message = str(e)
+        return jsonify({'error': error_message}), 500
+
 def updatepostgres(filenamecsv,dataset_name):
     connect_db = Connect_db()
     print(connect_db)
     db.SaveDataInCsv(connect_db,filenamecsv,dataset_name)
+
+#ОТПРАВИТЬ НА ПОЧТУ
+@app.route('/api/v1/generate-csv', methods=['POST'])
+def generate_csv():
+    try:
+        DB_HOST = 'localhost'
+        DB_PORT = 5858
+        DB_NAME = 'bridge-db'
+        DB_USER = 'postgres'
+        DB_PASSWORD = 'postgres'
+
+        # Создание подключения к базе данных
+        engine = create_engine(f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}')
+        Session = sessionmaker(bind=engine)
+        dataset_id = request.json.get('datasetid')
+
+        # Создание сессии базы данных
+        session = Session()
+
+        # Получение профилей на основе datasetid
+        profiles = session.query(Profile).filter_by(datasetsid=dataset_id).all()
+
+        # Список для хранения данных для CSV-файла
+        csv_data = []
+        for profile in profiles:
+          profile_id = profile.id
+          settings = session.query(Settings).filter_by(profileid=profile_id).first()
+          if settings:
+            row_data = []  # Временный список для хранения данных из всех таблиц
+
+            if settings.profileids and len(settings.profileids) >= 3 and settings.profileids[2] == 1:
+              profile_data = session.query(Profile).filter_by(id=profile_id).first()
+              row_data.extend([
+                profile_data.firstname or 'null',
+                profile_data.lastname or 'null',
+                str(profile_data.dateofbirth) if profile_data.dateofbirth else 'null',
+                profile_data.gender or 'null',
+                '; '.join(profile_data.email) if profile_data.email and any(e.strip() != '' for e in profile_data.email) else 'null',
+                '; '.join(profile_data.phone) if profile_data.phone and any(e.strip() != '' for e in profile_data.phone) else 'null',
+                str(profile_data.maritalstatus) if profile_data.maritalstatus else 'null',
+                str(profile_data.income) if profile_data.income else 'null'
+              ])
+
+            if settings.basicdataids and len(settings.basicdataids) >= 3 and settings.basicdataids[2] == 1:
+              basic_data = session.query(BasicData).filter_by(profileid=profile_id).first()
+              row_data.extend([
+                '; '.join(basic_data.interests) if basic_data.interests and any(e.strip() != '' for e in basic_data.interests) else 'null',
+                '; '.join(basic_data.languages) if basic_data.languages and any(e.strip() != '' for e in basic_data.languages) else 'null',
+                 '; '.join(basic_data.religionviews) if basic_data.religionviews and any(e.strip() != '' for e in basic_data.religionviews) else 'null',
+                 '; '.join(basic_data.politicalviews) if basic_data.politicalviews and any(e.strip() != '' for e in basic_data.politicalviews) else 'null',
+              ])
+
+            if settings.contactsids and len(settings.contactsids) >= 3 and settings.contactsids[2] == 1:
+              contacts_data = session.query(Contacts).filter_by(profileid=profile_id).first()
+              row_data.extend([
+                contacts_data.mobilephone or 'null',
+                contacts_data.address or 'null',
+                '; '.join(contacts_data.linkedaccounts) if contacts_data.linkedaccounts and any(e.strip() != '' for e in contacts_data.linkedaccounts) else 'null',
+                contacts_data.website or 'null'
+              ])
+
+            if settings.workandeducationids and len(settings.workandeducationids) >= 3 and settings.workandeducationids[2] == 1:
+              work_education_data = session.query(WorkAndEducation).filter_by(profileid=profile_id).first()
+              row_data.extend([
+                work_education_data.placeofwork or 'null',
+                '; '.join(work_education_data.skills) if work_education_data.skills and any(e.strip() != '' for e in work_education_data.skills) else 'null',
+                work_education_data.university or 'null',
+                work_education_data.faculty or 'null'
+              ])
+
+            if settings.placeofresidenceids and len(settings.placeofresidenceids) >= 3 and settings.placeofresidenceids[2] == 1:
+              place_residence_data = session.query(PlaceOfResidence).filter_by(profileid=profile_id).first()
+              row_data.extend([
+                place_residence_data.currentcity or 'null',
+                place_residence_data.birthplace or 'null',
+                '; '.join(place_residence_data.othercities) if place_residence_data.othercities and any(e.strip() != '' for e in place_residence_data.othercities) else 'null'
+             ])
+
+            if settings.personalinterestsids and len(settings.personalinterestsids) >= 3 and settings.personalinterestsids[2] == 1:
+              personal_interests_data = session.query(PersonalInterests).filter_by(profileid=profile_id).first()
+              row_data.extend([
+                personal_interests_data.briefdescription or 'null',
+                '; '.join(personal_interests_data.hobby) if personal_interests_data.hobby and any(e.strip() != '' for e in personal_interests_data.hobby) else 'null',
+                '; '.join(personal_interests_data.sport) if personal_interests_data.sport and any(e.strip() != '' for e in personal_interests_data.sport) else 'null',
+              ])
+
+            csv_data.append(row_data)  # Добавляем все данные из таблиц в одну строку
+
+        # Сохранение CSV-файла на локальном диске
+
+        #ДОБАВИТЬ ОСТАЛЬНЫЕ ТАБЛИЦЫ 
+ # Сохранение CSV-файла на локальном диске
+        save_path = '/home/maksat/golang/new/bridge'  # Замените на путь к желаемой папке сохранения
+        file_name = 'generated_data.csv'
+        file_path = os.path.join(save_path, file_name)
+        #ДОБАВИТЬ ОСТАЛЬНЫЕ ТАБЛИЦЫ 
+        with open(file_path, 'w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow([
+                'firstName', 'lastName', 'dateOfBirth', 'gender', 'email', 'phone', 'maritalStatus', 'income',
+                'interests', 'languages', 'religionViews', 'politicalViews', 'mobilePhone', 'address', 'linkedAccounts',
+                'website', 'placeOfWork', 'skills', 'university', 'faculty', 'currentCity', 'birthPlace', 'otherCities',
+                'breifDescription', 'hobby', 'sport'
+            ])
+            writer.writerows(csv_data)
+
+        return jsonify({'message': 'Файл сохранен успешно.'}), 200
+
+    except Exception as e:
+        error_message = str(e)
+        return jsonify({'error': error_message}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)

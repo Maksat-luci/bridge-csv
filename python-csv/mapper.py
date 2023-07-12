@@ -64,20 +64,20 @@ def process_csv_files(csv_file):
     output_df = pd.DataFrame(columns=sample_columns.keys())
 
     for column in sample_columns:
-        if column == "faculty":
-            output_df[column] = None
-        elif column == "address":
-            address_parts = ['city', 'county', 'state', 'zip']
-            if all(part in df.columns for part in address_parts):
-                output_df[column] = df[address_parts].apply(lambda x: '; '.join(x.dropna().astype(str)), axis=1)
-            else:
-                output_df[column] = None
-        elif column == "phone":
-            if "phone1" in df.columns and "phone2" in df.columns:
-                output_df[column] = df[["phone1", "phone2"]].apply(lambda x: '; '.join(x.dropna().astype(str)), axis=1)
-            else:
-                output_df[column] = None
-        elif column in df.columns:
+        # if column == "faculty":
+        #     output_df[column] = None
+        # if column == "address":
+        #     address_parts = ['city', 'county', 'state', 'zip']
+        #     if all(part in df.columns for part in address_parts):
+        #         output_df[column] = df[address_parts].apply(lambda x: '; '.join(x.dropna().astype(str)), axis=1)
+        #     else:
+        #         output_df[column] = None
+        # elif column == "phone":
+        #     if "phone1" in df.columns and "phone2" in df.columns:
+        #         output_df[column] = df[["phone1", "phone2","phone"]].apply(lambda x: '; '.join(x.dropna().astype(str)), axis=1)
+        #     else:
+        #         output_df[column] = None
+        if column in df.columns:
             output_df[column] = df[column]
         else:
             matching_column = find_matching_column(column, df.columns)

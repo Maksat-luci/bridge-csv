@@ -22,7 +22,7 @@ class Profile(Base):
     firstname = Column(String)
     lastname = Column(String)
     dateofbirth = Column(String)
-    gender = Column(String)
+    gender = Column(Integer)
     email = Column(postgresql.ARRAY(Text), nullable=True)
     phone = Column(postgresql.ARRAY(Text), nullable=True)
     maritalstatus = Column(Integer)
@@ -72,8 +72,8 @@ class PersonalInterests(Base):
     id = Column(Integer, primary_key=True)
     profileid = Column(Integer, ForeignKey('profile.id'))
     briefdescription = Column(Text)
-    hobby = Column(String)
-    sport = Column(String)
+    hobby = Column(postgresql.ARRAY(Text), nullable=True)
+    sport = Column(postgresql.ARRAY(Text), nullable=True)   
 
 
 class DeviceInformation(Base):
@@ -109,7 +109,7 @@ class Cookies(Base):
 class Settings(Base):
     __tablename__ = 'settings'
     id = Column(Integer, primary_key=True)
-    email = Column(String)
+    email = Column(postgresql.ARRAY(Text), nullable=True)
     profileid = Column(Integer, ForeignKey('profile.id'))
     profileids = Column(postgresql.ARRAY(Integer), nullable=True)
     basicdataids = Column(postgresql.ARRAY(Integer), nullable=True)
@@ -133,8 +133,8 @@ class BasicData(Base):
     __tablename__ = 'basicdata'
     id = Column(Integer, primary_key=True)
     profileid = Column(Integer, ForeignKey('profile.id'))
-    interests = Column(Text)
+    interests = Column(postgresql.ARRAY(Text), nullable=True)
     languages = Column(postgresql.ARRAY(Text), nullable=True)
-    religionviews = Column(String)
-    politicalviews = Column(String)
+    religionviews = Column(postgresql.ARRAY(Text), nullable=True)
+    politicalviews = Column(postgresql.ARRAY(Text), nullable=True)
 

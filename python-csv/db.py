@@ -10,25 +10,19 @@ def insert_data(table_name, data, conn):
         columns = ', '.join(data.keys())
         values = tuple(data.values())
         placeholders = ', '.join(['%s'] * len(data))
-        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) RETURNING id"
         cursor.execute(query, values)
+        inserted_id = cursor.fetchone()[0]
         conn.commit()
         cursor.close()
+        
+        return inserted_id
     except Exception as e:
-        # Обработка исключения
         print(f"An error occurred during data insertion: {e}")
         conn.rollback()
+        return None
 
 
-
-# Функция для получения идентификатора профиля
-def get_profile_id(email, phone, conn):
-    cursor = conn.cursor()
-    query = "SELECT id FROM profile WHERE email[1] = ANY (%s::varchar[]) OR phone[1] = ANY (%s::varchar[])"
-    cursor.execute(query, (email, phone))
-    profile_id = cursor.fetchone()
-    cursor.close()
-    return profile_id[0] if profile_id else None
 
 
 
@@ -44,8 +38,8 @@ def process_empty_string(value):
     return None if value == '' else value
 
 def generate_uuid():
-
     return str(uuid.uuid4())
+
 # Чтение CSV файла и вставка данных в таблицы
 def SaveDataInCsv(conn,filenamecsv,dataset_name):
     with open(filenamecsv, newline='') as csvfile:
@@ -56,8 +50,8 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
             'filename': filenamecsv
         }
         insert_data('datasets', dataset_data,conn)
-        # dataset_id = get_dataset_id(dataset_data['name'],conn)
         for row in reader:
+
             profile_data = {
                 'datasetsid': dataset_data.get('id'),
                 'firstname': process_empty_string(row.get('firstName')),
@@ -70,11 +64,10 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
                 'income': process_empty_string(row.get('income')) 
             }
 
-            insert_data('profile', profile_data,conn)
 
-            # Получение идентификатора профиля
-            profile_id = get_profile_id(profile_data['email'], profile_data['phone'],conn)
-            # Вставка данных в таблицу basicData
+
+            profile_id = insert_data('profile', profile_data,conn) 
+
             credentials_data = {
                 'profileid': profile_id,
                 'emails': process_empty_string(profile_data['email']),
@@ -84,10 +77,10 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
 
             basic_data = {
                 'profileid': profile_id,
-                'interests': process_empty_string(row.get('interests')),
+                'interests': row.get('interests').split(';') if row.get('interests') is not None else None,
                 'languages': row.get('languages').split(';') if row.get('languages') is not None else None,  # Разделение множественных значений через ;
-                'religionviews': process_empty_string(row.get('religionViews')),
-                'politicalviews': process_empty_string(row.get('politicalViews')),
+                'religionviews': row.get('religionViews').split(';') if row.get('religionViews') is not None else None,
+                'politicalviews': row.get('politicalViews').split(';') if row.get('politicalViews') is not None else None,
             }
             insert_data('basicdata', basic_data,conn)
 
@@ -117,9 +110,9 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
             insert_data('placeofresidence', placeOfResidence,conn)
             personalInterested = {
                 'profileid': profile_id,
-                'briefdescription':process_empty_string(row.get('briefDescription')),
-                'hobby':process_empty_string(row.get('hobby')),
-                'sport': process_empty_string(row.get('sport')),
+                'briefdescription': process_empty_string(row.get('briefDescription')),
+                'hobby':row.get('hobby').split(';') if row.get('hobby') is not None else None,
+                'sport': row.get('sport').split(';') if row.get('sport') is not None else None,
             }
             insert_data('personalinterests',personalInterested,conn)
             deviceInformation = {
@@ -128,27 +121,28 @@ def SaveDataInCsv(conn,filenamecsv,dataset_name):
                 'displayresolution':process_empty_string(row.get('displayResolution')),
                 'browser': process_empty_string(row.get('browser')),
                 'isp': process_empty_string(row.get('iSP')),
-                'adblock': process_empty_string(row.get('adBlock')),
+                'adblock': eval(process_empty_string(row.get('adBlock'))),
             }
             insert_data('deviceinformation', deviceInformation,conn)
-            cookies = {
+            cookies_data = {
                 'profileid': profile_id,
                 'sessionstate':process_empty_string(row.get('sessionState')),
                 'language': process_empty_string(row.get('language')),
                 'region': process_empty_string(row.get('region')),
                 'recentpages':row.get('recentPages').split(';') if row.get('recentPages') is not None else None,
+                'productid': process_empty_string(row.get('productId')),
                 'productname':process_empty_string(row.get('productName')),
                 'productprice':process_empty_string(row.get('productPrice')),
                 'quantity': process_empty_string(row.get('quantity')),
-                'subtotal': process_empty_string(row.get('subtotal')),
+                'subtotal': process_empty_string(row.get('subTotal')),
                 'total': process_empty_string(row.get('total')),
                 'couponcode': process_empty_string(row.get('couponCode')),
                 'shippinginformation': process_empty_string(row.get('shippingInformation')),
                 'taxinformation': process_empty_string(row.get('taxInformation'))
             }
-            insert_data('cookies', cookies,conn)
+            insert_data('cookies', cookies_data,conn)
             settings = {
-                'email': row['email'] if 'email' in row else None,
+                'email': row.get('email').split(';') if row.get('email') is not None else None,
                 'profileid':profile_id,
                 'profileids':[0,0,0],
                 'basicdataids':[0,0,0],
